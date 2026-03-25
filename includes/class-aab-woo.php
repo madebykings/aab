@@ -26,9 +26,6 @@ class AAB_Woo {
         add_action('woocommerce_cart_item_removed', [__CLASS__, 'maybe_release_removed_brick'], 10, 2);
         add_action('woocommerce_cart_emptied', [__CLASS__, 'maybe_release_session_brick']);
 
-        add_action('wp_ajax_aab_refresh_reservation', [__CLASS__, 'ajax_refresh_reservation']);
-        add_action('wp_ajax_nopriv_aab_refresh_reservation', [__CLASS__, 'ajax_refresh_reservation']);
-
         add_action('wp_footer', [__CLASS__, 'render_checkout_ui_script'], 99);
 
         add_filter('woocommerce_is_checkout', [__CLASS__, 'is_brick_checkout_page']);
@@ -39,11 +36,11 @@ class AAB_Woo {
     }
 
     public static function handle_claim_submission() {
-        if (empty($_POST['aab_action']) || $_POST['aab_action'] !== 'claim_brick') {
+        if (empty($_POST['aab_action']) || $_POST['aab_action'] !== 'adopt_brick') {
             return;
         }
 
-        if (empty($_POST['aab_claim_nonce']) || !wp_verify_nonce($_POST['aab_claim_nonce'], 'aab_claim_brick')) {
+        if (empty($_POST['aab_adopt_nonce']) || !wp_verify_nonce($_POST['aab_adopt_nonce'], 'aab_adopt_brick')) {
             wc_add_notice('Security check failed. Please try again.', 'error');
             return;
         }
@@ -56,16 +53,13 @@ class AAB_Woo {
         $brick_message = sanitize_textarea_field($_POST['brick_message'] ?? '');
         $reply_to      = absint($_POST['reply_to_brick_id'] ?? 0);
 
-        // Reserve a brick atomically at the moment of submission.
-        $brick_id = AAB_Bricks::reserve_next_available_for_session();
-        if (!$brick_id) {
+        // Check at least one brick is available before proceeding.
+        if (empty(AAB_Bricks::get_next_available())) {
             wc_add_notice('No bricks are currently available. Please try again soon.', 'error');
             return;
         }
 
-        $brick_number = get_post_meta($brick_id, 'brick_number', true);
-        $prefill      = self::get_reply_prefill_data($reply_to);
-
+        $prefill    = self::get_reply_prefill_data($reply_to);
         $product_id = self::get_product_id();
 
         if (!$product_id) {
@@ -81,11 +75,9 @@ class AAB_Woo {
 
         WC()->cart->empty_cart();
 
-        // Set claim data AFTER empty_cart so it isn't wiped by maybe_release_session_brick.
+        // Store claim data — brick_id/brick_number are assigned at payment time.
         // sender_name / display_name are derived from billing details at order completion.
         WC()->session->set('aab_claim_data', [
-            'brick_id'               => $brick_id,
-            'brick_number'           => $brick_number,
             'anonymous'              => $anonymous ? 1 : 0,
             'sender_name'            => '',
             'display_name'           => $anonymous ? 'Anonymous' : '',
@@ -104,40 +96,12 @@ class AAB_Woo {
         $added = WC()->cart->add_to_cart($product_id, 1);
 
         if (!$added) {
-            // Release the reservation we just made so it doesn't stay locked.
-            AAB_Bricks::release_brick($brick_id, AAB_Bricks::get_reservation_token());
             wc_add_notice('Could not add the brick to cart. Please try again.', 'error');
             return;
         }
 
-        // Store brick_id in session so the heartbeat can refresh the reservation.
-        WC()->session->set('aab_brick_id', $brick_id);
-
         wp_safe_redirect(home_url('/brick-checkout/'));
         exit;
-    }
-
-    public static function ajax_refresh_reservation() {
-        check_ajax_referer('aab_nonce', 'nonce');
-
-        if (!function_exists('WC') || !WC()->session) {
-            wp_send_json_error(['message' => 'No session']);
-        }
-
-        $brick_id = (int) WC()->session->get('aab_brick_id');
-        $token    = AAB_Bricks::get_reservation_token();
-
-        if (!$brick_id) {
-            wp_send_json_error(['message' => 'No brick']);
-        }
-
-        $ok = AAB_Bricks::refresh_reservation($brick_id, $token);
-
-        if (!$ok) {
-            wp_send_json_error(['message' => 'Reservation lost']);
-        }
-
-        wp_send_json_success(['brick_id' => $brick_id]);
     }
 
     public static function get_reply_prefill_data($reply_to_brick_id) {
@@ -204,11 +168,6 @@ class AAB_Woo {
         }
 
         $claim = $cart_item['aab_claim'];
-
-        $item_data[] = [
-            'key'   => 'Brick Number',
-            'value' => '#' . esc_html($claim['brick_number'] ?? ''),
-        ];
 
         $item_data[] = [
             'key'   => 'Appears As',
@@ -374,16 +333,7 @@ class AAB_Woo {
             return;
         }
 
-        $claim    = $cart->removed_cart_contents[$cart_item_key]['aab_claim'];
-        $brick_id = (int) ($claim['brick_id'] ?? 0);
-        $token    = AAB_Bricks::get_reservation_token();
-
-        if ($brick_id) {
-            AAB_Bricks::release_brick($brick_id, $token);
-        }
-
         if (function_exists('WC') && WC()->session) {
-            WC()->session->__unset('aab_brick_id');
             WC()->session->__unset('aab_claim_data');
         }
     }
@@ -393,14 +343,6 @@ class AAB_Woo {
             return;
         }
 
-        $brick_id = (int) WC()->session->get('aab_brick_id');
-        $token    = AAB_Bricks::get_reservation_token();
-
-        if ($brick_id) {
-            AAB_Bricks::release_brick($brick_id, $token);
-        }
-
-        WC()->session->__unset('aab_brick_id');
         WC()->session->__unset('aab_claim_data');
     }
 
@@ -414,12 +356,26 @@ class AAB_Woo {
             return;
         }
 
-        foreach ($order->get_items() as $item) {
-            $brick_id = (int) $item->get_meta('brick_id', true);
+        $aab_product_id = self::get_product_id();
 
+        foreach ($order->get_items() as $item) {
+            // Only process the AAB product.
+            if ((int) $item->get_product_id() !== (int) $aab_product_id) {
+                continue;
+            }
+
+            // Assign the next available brick now at payment time.
+            $brick_id = AAB_Bricks::assign_next_available();
             if (!$brick_id) {
                 continue;
             }
+
+            $brick_number = get_post_meta($brick_id, 'brick_number', true);
+
+            // Write brick assignment back to order item for future reference.
+            $item->update_meta_data('brick_id', $brick_id);
+            $item->update_meta_data('brick_number', $brick_number);
+            $item->save();
 
             $reply_to = (int) $item->get_meta('reply_to_brick_id', true);
             $chain    = AAB_Bricks::build_chain_data($reply_to);
@@ -427,7 +383,6 @@ class AAB_Woo {
             $shipping_first      = $order->get_shipping_first_name();
             $shipping_last       = $order->get_shipping_last_name();
             $recipient_name      = trim($shipping_first . ' ' . $shipping_last);
-            $brick_number        = $item->get_meta('brick_number', true);
             $reveal_url          = home_url('/brick/' . absint($brick_number) . '/');
 
             // Determine if the buyer left the default "The Homeowner" or entered a real name.
@@ -495,7 +450,6 @@ class AAB_Woo {
         $order->save();
 
         if (function_exists('WC') && WC()->session) {
-            WC()->session->__unset('aab_brick_id');
             WC()->session->__unset('aab_claim_data');
         }
     }

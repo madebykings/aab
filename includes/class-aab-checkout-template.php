@@ -34,15 +34,13 @@ class AAB_Checkout_Template {
             wc_print_notices();
         }
 
-        $brick_number  = $claim['brick_number'] ?? '';
-        $anonymous     = !empty($claim['anonymous']);
-        $message       = $claim['brick_message'] ?? '';
-        $brick_post_id = (int) ($claim['brick_id'] ?? 0);
+        $anonymous = !empty($claim['anonymous']);
+        $message   = $claim['brick_message'] ?? '';
 
-        $brick_img_url = $brick_post_id ? get_the_post_thumbnail_url($brick_post_id, 'large') : '';
-
-        $product   = wc_get_product(AAB_Woo::get_product_id());
-        $unit_type = $product ? $product->get_name() : 'Standard Red Masonry Brick';
+        $product     = wc_get_product(AAB_Woo::get_product_id());
+        $product_img = $product ? get_the_post_thumbnail_url($product->get_id(), 'large') : '';
+        $tags        = $product ? wp_get_post_terms($product->get_id(), 'product_tag') : [];
+        $unit_type   = (!empty($tags) && !is_wp_error($tags)) ? $tags[0]->name : ($product ? $product->get_name() : 'Standard Red Masonry Brick');
 
         $cart_total = WC()->cart ? WC()->cart->get_cart_total() : '';
 
@@ -86,7 +84,6 @@ class AAB_Checkout_Template {
 
                             <section class="aab-panel aab-panel--step1">
                                 <div class="aab-panel__intro">
-                                    <div class="aab-step-pill">Step 02 / 04</div>
                                     <h2>Your Details</h2>
                                     <p>We need your name and email for the order. This makes sure your digital certificate and order updates reach you safely.</p>
                                 </div>
@@ -157,9 +154,8 @@ class AAB_Checkout_Template {
 
                             <section class="aab-panel aab-panel--step3">
                                 <div class="aab-panel__intro">
-                                    <div class="aab-step-pill">Step 04 / 04</div>
                                     <h2>Payment</h2>
-                                    <p>One final step. Review the order and complete payment to officially adopt Brick #<?php echo esc_html($brick_number); ?>.</p>
+                                    <p>One final step. Review the order and complete payment. Your brick number will be revealed once payment is confirmed.</p>
                                 </div>
 
                                 <div class="aab-payment-shell">
@@ -183,15 +179,11 @@ class AAB_Checkout_Template {
                             <div class="aab-side-card__title">Order Summary</div>
 
                             <div class="aab-side-card__visual">
-                                <?php if ($brick_img_url): ?>
-                                    <img src="<?php echo esc_url($brick_img_url); ?>" alt="Brick #<?php echo esc_html($brick_number); ?>" class="aab-side-card__img">
+                                <?php if ($product_img): ?>
+                                    <img src="<?php echo esc_url($product_img); ?>" alt="" class="aab-side-card__img">
                                 <?php else: ?>
                                     <div class="aab-side-card__img aab-side-card__img--fallback"></div>
                                 <?php endif; ?>
-                                <div class="aab-side-card__img-overlay">
-                                    <span class="aab-side-card__serial-label">Brick ID</span>
-                                    <div class="aab-side-card__serial-number">#<?php echo esc_html($brick_number); ?></div>
-                                </div>
                             </div>
 
                             <div class="aab-side-meta">

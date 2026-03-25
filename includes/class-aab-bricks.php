@@ -175,6 +175,32 @@ class AAB_Bricks {
         return true;
     }
 
+    public static function assign_next_available() {
+        $candidates = self::get_next_available();
+
+        if (empty($candidates)) {
+            return 0;
+        }
+
+        foreach ($candidates as $brick) {
+            $brick_id = (int) $brick->ID;
+            $status   = get_post_meta($brick_id, 'brick_status', true);
+
+            if ($status !== 'available') {
+                continue;
+            }
+
+            update_post_meta($brick_id, 'brick_status', 'sold');
+
+            // Re-read to confirm we won the race.
+            if (get_post_meta($brick_id, 'brick_status', true) === 'sold') {
+                return $brick_id;
+            }
+        }
+
+        return 0;
+    }
+
     public static function mark_sold($brick_id, $data = []) {
         update_post_meta($brick_id, 'brick_status', 'sold');
         update_post_meta($brick_id, 'reserved_until', '');

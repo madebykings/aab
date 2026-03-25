@@ -26,9 +26,11 @@ class AAB_Flow {
         }
 
         // ── Sidebar data ──────────────────────────────────────────────────────
-        $product   = wc_get_product(AAB_Woo::get_product_id());
-        $unit_type = $product ? $product->get_name() : 'Standard Red Masonry Brick';
-        $price     = $product ? wc_price($product->get_price()) : '';
+        $product        = wc_get_product(AAB_Woo::get_product_id());
+        $price          = $product ? wc_price($product->get_price()) : '';
+        $product_img    = $product ? get_the_post_thumbnail_url($product->get_id(), 'large') : '';
+        $tags           = $product ? wp_get_post_terms($product->get_id(), 'product_tag') : [];
+        $unit_type      = (!empty($tags) && !is_wp_error($tags)) ? $tags[0]->name : ($product ? $product->get_name() : 'Standard Red Masonry Brick');
 
         $sold_query  = new WP_Query([
             'post_type'      => 'brick',
@@ -86,7 +88,6 @@ class AAB_Flow {
 
                         <section class="aab-panel" style="display:block;">
                             <div class="aab-panel__intro">
-                                <div class="aab-step-pill">Step 01 / 04</div>
                                 <h2>Adopt A Brick</h2>
                                 <p><?php echo esc_html(AAB_Settings::get_default_price_copy()); ?></p>
                                 <p>You adopt it. They're the ones who have to look after it.</p>
@@ -105,8 +106,8 @@ class AAB_Flow {
                             <?php endif; ?>
 
                             <form method="post" class="aab-claim-form">
-                                <?php wp_nonce_field('aab_claim_brick', 'aab_claim_nonce'); ?>
-                                <input type="hidden" name="aab_action" value="claim_brick">
+                                <?php wp_nonce_field('aab_adopt_brick', 'aab_adopt_nonce'); ?>
+                                <input type="hidden" name="aab_action" value="adopt_brick">
                                 <input type="hidden" name="reply_to_brick_id" value="<?php echo esc_attr($reply_to_post_id); ?>">
 
                                 <div class="aab-fields">
@@ -123,7 +124,7 @@ class AAB_Flow {
                                 </div>
 
                                 <div class="aab-actions">
-                                    <button type="submit" class="button">Claim this brick</button>
+                                    <button type="submit" class="button">Adopt this brick</button>
                                 </div>
                             </form>
                         </section>
@@ -135,11 +136,11 @@ class AAB_Flow {
                             <div class="aab-side-card__title">Order Summary</div>
 
                             <div class="aab-side-card__visual">
-                                <div class="aab-side-card__img aab-side-card__img--fallback"></div>
-                                <div class="aab-side-card__img-overlay">
-                                    <span class="aab-side-card__serial-label">Brick ID</span>
-                                    <div class="aab-side-card__serial-number">#<?php echo esc_html(get_post_meta($available[0]->ID, 'brick_number', true)); ?></div>
-                                </div>
+                                <?php if ($product_img): ?>
+                                    <img src="<?php echo esc_url($product_img); ?>" alt="" class="aab-side-card__img">
+                                <?php else: ?>
+                                    <div class="aab-side-card__img aab-side-card__img--fallback"></div>
+                                <?php endif; ?>
                             </div>
 
                             <div class="aab-side-meta">
