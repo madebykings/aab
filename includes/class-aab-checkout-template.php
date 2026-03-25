@@ -34,12 +34,8 @@ class AAB_Checkout_Template {
             wc_print_notices();
         }
 
-        $brick_number  = $claim['brick_number'] ?? '';
-        $anonymous     = !empty($claim['anonymous']);
-        $message       = $claim['brick_message'] ?? '';
-        $brick_post_id = (int) ($claim['brick_id'] ?? 0);
-
-        $brick_img_url = $brick_post_id ? get_the_post_thumbnail_url($brick_post_id, 'large') : '';
+        $anonymous = !empty($claim['anonymous']);
+        $message   = $claim['brick_message'] ?? '';
 
         $product   = wc_get_product(AAB_Woo::get_product_id());
         $unit_type = $product ? $product->get_name() : 'Standard Red Masonry Brick';
@@ -159,7 +155,7 @@ class AAB_Checkout_Template {
                                 <div class="aab-panel__intro">
                                     <div class="aab-step-pill">Step 04 / 04</div>
                                     <h2>Payment</h2>
-                                    <p>One final step. Review the order and complete payment to officially adopt Brick #<?php echo esc_html($brick_number); ?>.</p>
+                                    <p>One final step. Review the order and complete payment. Your brick number will be revealed once payment is confirmed.</p>
                                 </div>
 
                                 <div class="aab-payment-shell">
@@ -183,14 +179,10 @@ class AAB_Checkout_Template {
                             <div class="aab-side-card__title">Order Summary</div>
 
                             <div class="aab-side-card__visual">
-                                <?php if ($brick_img_url): ?>
-                                    <img src="<?php echo esc_url($brick_img_url); ?>" alt="Brick #<?php echo esc_html($brick_number); ?>" class="aab-side-card__img">
-                                <?php else: ?>
-                                    <div class="aab-side-card__img aab-side-card__img--fallback"></div>
-                                <?php endif; ?>
+                                <div class="aab-side-card__img aab-side-card__img--fallback"></div>
                                 <div class="aab-side-card__img-overlay">
                                     <span class="aab-side-card__serial-label">Brick ID</span>
-                                    <div class="aab-side-card__serial-number">#<?php echo esc_html($brick_number); ?></div>
+                                    <div class="aab-side-card__serial-number">Assigned at checkout</div>
                                 </div>
                             </div>
 
