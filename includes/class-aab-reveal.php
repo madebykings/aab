@@ -55,7 +55,7 @@ class AAB_Reveal {
         $views           = (int) get_post_meta($brick->ID, 'revealed_views', true);
         $chain           = AAB_Bricks::get_chain_posts($brick->ID);
         $chain_count     = is_array($chain) ? count($chain) : 0;
-        $can_send_back   = !empty(get_post_meta($brick->ID, 'return_address_1', true));
+        $can_send_back   = !$anonymous && !empty(get_post_meta($brick->ID, 'return_address_1', true));
 
         $reply_link = add_query_arg('reply_to', $brick_number, home_url('/adopt-a-brick/'));
 
