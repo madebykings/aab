@@ -126,10 +126,9 @@ class AAB_Flow {
                                     <div class="form-row form-row-wide">
                                         <label for="aab_brick_type">Select brick type</label>
                                         <select name="brick_type" id="aab_brick_type" class="input-text">
-                                            <option value="">— Choose a brick —</option>
                                             <?php foreach ($types as $type_data):
-                                                $term      = $type_data['term'];
-                                                $type_img  = $type_data['image_url'] ?: $default_img;
+                                                $term       = $type_data['term'];
+                                                $type_img   = $type_data['image_url'] ?: $default_img;
                                                 $type_price = wp_strip_all_tags($type_data['price_html'] ?: $default_price);
                                             ?>
                                             <option value="<?php echo esc_attr($term->slug); ?>"
@@ -242,7 +241,7 @@ class AAB_Flow {
             // ── Type dropdown ─────────────────────────────────────────────────
             var $typeSelect = $('#aab_brick_type');
             if ($typeSelect.length) {
-                $typeSelect.on('change', function() {
+                function syncSidebarFromSelect() {
                     var $opt = $(this).find(':selected');
                     var img       = $opt.data('img');
                     var unit      = $opt.data('unit');
@@ -254,7 +253,9 @@ class AAB_Flow {
                     }
                     if (unit)      { $('#aab-sidebar-unit').text(unit); }
                     if (priceHtml) { $('#aab-sidebar-price').html(priceHtml); }
-                });
+                }
+                $typeSelect.on('change', syncSidebarFromSelect);
+                syncSidebarFromSelect(); // reflect default on load
             }
 
             // ── Anonymous toggle ──────────────────────────────────────────────
