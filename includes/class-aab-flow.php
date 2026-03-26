@@ -98,63 +98,12 @@ class AAB_Flow {
                     <div class="aab-checkout-main">
 
                         <?php if ($has_types): ?>
-                        <section class="aab-panel aab-panel--type-select" style="display:block;">
-                            <div class="aab-panel__intro">
-                                <h2>Select Your Brick</h2>
-                                <p>Choose the type of brick you'd like to adopt.</p>
-                                <?php if ($sold_bricks > 0): ?>
-                                <p class="aab-social-proof"><?php echo number_format($sold_bricks); ?> <?php echo $sold_bricks === 1 ? 'brick has' : 'bricks have'; ?> already found a new home.</p>
-                                <?php endif; ?>
-                            </div>
-
-                            <div class="aab-type-grid">
-                                <?php foreach ($types as $type_data):
-                                    $term       = $type_data['term'];
-                                    $type_img   = $type_data['image_url'] ?: $default_img;
-                                    $type_unit  = esc_attr($term->name);
-                                    $type_price = $type_data['price_html'] ?: $default_price;
-                                    $type_desc  = $type_data['description'];
-                                ?>
-                                <div class="aab-type-card"
-                                     data-type="<?php echo esc_attr($term->slug); ?>"
-                                     data-img="<?php echo esc_attr($type_img); ?>"
-                                     data-unit="<?php echo esc_attr($term->name); ?>"
-                                     data-price="<?php echo esc_attr(wp_strip_all_tags($type_price)); ?>"
-                                     data-price-html="<?php echo esc_attr($type_price); ?>"
-                                >
-                                    <div class="aab-type-card__visual">
-                                        <?php if ($type_img): ?>
-                                            <img src="<?php echo esc_url($type_img); ?>" alt="<?php echo esc_attr($term->name); ?>">
-                                        <?php else: ?>
-                                            <div class="aab-type-card__img-fallback"></div>
-                                        <?php endif; ?>
-                                    </div>
-                                    <div class="aab-type-card__body">
-                                        <h3><?php echo esc_html($term->name); ?></h3>
-                                        <?php if ($type_desc): ?>
-                                            <p><?php echo esc_html($type_desc); ?></p>
-                                        <?php endif; ?>
-                                        <?php if ($type_price): ?>
-                                            <div class="aab-type-card__price"><?php echo wp_kses_post($type_price); ?></div>
-                                        <?php endif; ?>
-                                    </div>
-                                    <div class="aab-type-card__check" aria-hidden="true">&#10003;</div>
-                                </div>
-                                <?php endforeach; ?>
-                            </div>
-
-                            <div class="aab-actions">
-                                <button type="button" class="button aab-btn-type-continue" disabled>Continue</button>
-                            </div>
-                        </section>
-                        <?php endif; ?>
-
-                        <section class="aab-panel aab-panel--compose"<?php echo $has_types ? '' : ' style="display:block;"'; ?>>
+                        <section class="aab-panel aab-panel--compose" style="display:block;">
                             <div class="aab-panel__intro">
                                 <h2>Adopt A Brick</h2>
                                 <p><?php echo esc_html(AAB_Settings::get_default_price_copy()); ?></p>
                                 <p>You adopt it. They're the ones who have to look after it.</p>
-                                <?php if (!$has_types && $sold_bricks > 0): ?>
+                                <?php if ($sold_bricks > 0): ?>
                                 <p class="aab-social-proof"><?php echo number_format($sold_bricks); ?> <?php echo $sold_bricks === 1 ? 'brick has' : 'bricks have'; ?> already found a new home.</p>
                                 <?php endif; ?>
                             </div>
@@ -172,7 +121,66 @@ class AAB_Flow {
                                 <?php wp_nonce_field('aab_adopt_brick', 'aab_adopt_nonce'); ?>
                                 <input type="hidden" name="aab_action" value="adopt_brick">
                                 <input type="hidden" name="reply_to_brick_id" value="<?php echo esc_attr($reply_to_post_id); ?>">
-                                <input type="hidden" name="brick_type" id="aab_brick_type" value="">
+
+                                <div class="aab-fields">
+                                    <div class="form-row form-row-wide">
+                                        <label for="aab_brick_type">Select brick type</label>
+                                        <select name="brick_type" id="aab_brick_type" class="input-text">
+                                            <option value="">— Choose a brick —</option>
+                                            <?php foreach ($types as $type_data):
+                                                $term      = $type_data['term'];
+                                                $type_img  = $type_data['image_url'] ?: $default_img;
+                                                $type_price = wp_strip_all_tags($type_data['price_html'] ?: $default_price);
+                                            ?>
+                                            <option value="<?php echo esc_attr($term->slug); ?>"
+                                                    data-img="<?php echo esc_attr($type_img); ?>"
+                                                    data-unit="<?php echo esc_attr($term->name); ?>"
+                                                    data-price-html="<?php echo esc_attr($type_data['price_html'] ?: $default_price); ?>"
+                                            ><?php echo esc_html($term->name); ?><?php echo $type_price ? ' — ' . $type_price : ''; ?></option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                    </div>
+                                    <div class="form-row form-row-wide">
+                                        <label class="checkbox" for="aab_anonymous">
+                                            <input type="checkbox" id="aab_anonymous" name="anonymous" value="1">
+                                            Stay anonymous — they'll never know it was you
+                                        </label>
+                                    </div>
+                                    <div class="form-row form-row-wide">
+                                        <label for="brick_message">What do you want to say? <span class="optional">(optional)</span></label>
+                                        <textarea id="brick_message" name="brick_message" rows="4" class="input-text" placeholder="Say something they won't forget…"></textarea>
+                                    </div>
+                                </div>
+
+                                <div class="aab-actions">
+                                    <button type="submit" class="button">Adopt this brick</button>
+                                </div>
+                            </form>
+                        </section>
+                        <?php else: ?>
+                        <section class="aab-panel aab-panel--compose" style="display:block;">
+                            <div class="aab-panel__intro">
+                                <h2>Adopt A Brick</h2>
+                                <p><?php echo esc_html(AAB_Settings::get_default_price_copy()); ?></p>
+                                <p>You adopt it. They're the ones who have to look after it.</p>
+                                <?php if ($sold_bricks > 0): ?>
+                                <p class="aab-social-proof"><?php echo number_format($sold_bricks); ?> <?php echo $sold_bricks === 1 ? 'brick has' : 'bricks have'; ?> already found a new home.</p>
+                                <?php endif; ?>
+                            </div>
+
+                            <?php if ($reply_to_number): ?>
+                                <div class="aab-reply-banner">
+                                    Replying to Brick #<?php echo esc_html($reply_to_number); ?>
+                                    <?php if ($reply_sender_name): ?>
+                                        — sending one back to <?php echo esc_html($reply_sender_name); ?>
+                                    <?php endif; ?>
+                                </div>
+                            <?php endif; ?>
+
+                            <form method="post" class="aab-claim-form">
+                                <?php wp_nonce_field('aab_adopt_brick', 'aab_adopt_nonce'); ?>
+                                <input type="hidden" name="aab_action" value="adopt_brick">
+                                <input type="hidden" name="reply_to_brick_id" value="<?php echo esc_attr($reply_to_post_id); ?>">
 
                                 <div class="aab-fields">
                                     <div class="form-row form-row-wide">
@@ -188,13 +196,11 @@ class AAB_Flow {
                                 </div>
 
                                 <div class="aab-actions">
-                                    <?php if ($has_types): ?>
-                                        <button type="button" class="button aab-btn-type-back aab-btn-secondary">Back</button>
-                                    <?php endif; ?>
                                     <button type="submit" class="button">Adopt this brick</button>
                                 </div>
                             </form>
                         </section>
+                        <?php endif; ?>
 
                     </div><!-- /.aab-checkout-main -->
 
@@ -233,48 +239,21 @@ class AAB_Flow {
         </div><!-- /.aab-custom-checkout -->
         <script>
         jQuery(function($) {
-            var hasTypes = <?php echo $has_types ? 'true' : 'false'; ?>;
+            // ── Type dropdown ─────────────────────────────────────────────────
+            var $typeSelect = $('#aab_brick_type');
+            if ($typeSelect.length) {
+                $typeSelect.on('change', function() {
+                    var $opt = $(this).find(':selected');
+                    var img       = $opt.data('img');
+                    var unit      = $opt.data('unit');
+                    var priceHtml = $opt.data('price-html');
 
-            // ── Type selection ────────────────────────────────────────────────
-            if (hasTypes) {
-                var $cards      = $('.aab-type-card');
-                var $typeInput  = $('#aab_brick_type');
-                var $continueBtn = $('.aab-btn-type-continue');
-                var $backBtn    = $('.aab-btn-type-back');
-                var $panelType  = $('.aab-panel--type-select');
-                var $panelCompose = $('.aab-panel--compose');
-
-                $cards.on('click', function() {
-                    $cards.removeClass('is-selected');
-                    $(this).addClass('is-selected');
-
-                    var type    = $(this).data('type');
-                    var img     = $(this).data('img');
-                    var unit    = $(this).data('unit');
-                    var priceHtml = $(this).data('price-html');
-
-                    $typeInput.val(type);
-                    $continueBtn.prop('disabled', false);
-
-                    // Update sidebar
                     if (img) {
                         $('#aab-sidebar-img').attr('src', img).show();
                         $('#aab-sidebar-img-fallback').hide();
                     }
-                    $('#aab-sidebar-unit').text(unit);
-                    $('#aab-sidebar-price').html(priceHtml);
-                });
-
-                $continueBtn.on('click', function() {
-                    $panelType.hide();
-                    $panelCompose.show();
-                    $('html, body').animate({ scrollTop: $panelCompose.offset().top - 20 }, 150);
-                });
-
-                $backBtn.on('click', function() {
-                    $panelCompose.hide();
-                    $panelType.show();
-                    $('html, body').animate({ scrollTop: $panelType.offset().top - 20 }, 150);
+                    if (unit)      { $('#aab-sidebar-unit').text(unit); }
+                    if (priceHtml) { $('#aab-sidebar-price').html(priceHtml); }
                 });
             }
 
