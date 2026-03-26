@@ -6,7 +6,63 @@ class AAB_Bricks {
     const POST_TYPE = 'brick';
 
     public static function init() {
-        // no hooks yet
+        add_action('init', [__CLASS__, 'register_taxonomy']);
+    }
+
+    public static function register_taxonomy() {
+        register_taxonomy('brick_type', self::POST_TYPE, [
+            'label'        => 'Brick Types',
+            'public'       => true,
+            'show_ui'      => true,
+            'show_in_rest' => true,
+            'hierarchical' => false,
+            'rewrite'      => ['slug' => 'brick-type'],
+        ]);
+    }
+
+    public static function get_available_types() {
+        $terms = get_terms(['taxonomy' => 'brick_type', 'hide_empty' => false]);
+        if (is_wp_error($terms) || empty($terms)) {
+            return [];
+        }
+
+        $available = [];
+        foreach ($terms as $term) {
+            $has_stock = get_posts([
+                'post_type'      => self::POST_TYPE,
+                'post_status'    => 'publish',
+                'posts_per_page' => 1,
+                'fields'         => 'ids',
+                'tax_query'      => [['taxonomy' => 'brick_type', 'field' => 'term_id', 'terms' => $term->term_id]],
+                'meta_query'     => [['key' => 'brick_status', 'value' => 'available']],
+            ]);
+
+            if (empty($has_stock)) {
+                continue;
+            }
+
+            $product_id  = (int) get_term_meta($term->term_id, 'aab_type_product_id', true);
+            $product     = $product_id ? wc_get_product($product_id) : null;
+            $image_id    = (int) get_term_meta($term->term_id, 'aab_type_image_id', true);
+            $image_url   = $image_id ? wp_get_attachment_image_url($image_id, 'large') : '';
+
+            if (!$image_url && $product) {
+                $image_url = get_the_post_thumbnail_url($product->get_id(), 'large');
+            }
+
+            $description = (string) get_term_meta($term->term_id, 'aab_type_description', true) ?: $term->description;
+            $price_html  = $product ? wc_price($product->get_price()) : '';
+
+            $available[] = [
+                'term'        => $term,
+                'product_id'  => $product_id,
+                'image_url'   => $image_url,
+                'description' => $description,
+                'price_html'  => $price_html,
+            ];
+        }
+
+        return $available;
     }
 
     public static function get_by_number($brick_number) {
@@ -175,8 +231,24 @@ class AAB_Bricks {
         return true;
     }
 
-    public static function assign_next_available() {
-        $candidates = self::get_next_available();
+    public static function assign_next_available($type_slug = '') {
+        $args = [
+            'post_type'      => self::POST_TYPE,
+            'post_status'    => 'publish',
+            'posts_per_page' => 10,
+            'orderby'        => 'meta_value_num',
+            'order'          => 'ASC',
+            'meta_key'       => 'brick_number',
+            'meta_query'     => [['key' => 'brick_status', 'value' => 'available']],
+        ];
+
+        if ($type_slug) {
+            $args['tax_query'] = [
+                ['taxonomy' => 'brick_type', 'field' => 'slug', 'terms' => sanitize_key($type_slug)],
+            ];
+        }
+
+        $candidates = get_posts($args);
 
         if (empty($candidates)) {
             return 0;
