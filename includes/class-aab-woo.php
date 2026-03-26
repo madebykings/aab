@@ -35,6 +35,19 @@ class AAB_Woo {
         return AAB_Settings::get_product_id();
     }
 
+    public static function get_product_id_for_type($type_slug) {
+        if ($type_slug) {
+            $term = get_term_by('slug', $type_slug, 'brick_type');
+            if ($term && !is_wp_error($term)) {
+                $type_product_id = (int) get_term_meta($term->term_id, 'aab_type_product_id', true);
+                if ($type_product_id && wc_get_product($type_product_id)) {
+                    return $type_product_id;
+                }
+            }
+        }
+        return self::get_product_id();
+    }
+
     public static function handle_claim_submission() {
         if (empty($_POST['aab_action']) || $_POST['aab_action'] !== 'adopt_brick') {
             return;
@@ -52,6 +65,7 @@ class AAB_Woo {
         $anonymous     = !empty($_POST['anonymous']);
         $brick_message = sanitize_textarea_field($_POST['brick_message'] ?? '');
         $reply_to      = absint($_POST['reply_to_brick_id'] ?? 0);
+        $brick_type    = sanitize_key($_POST['brick_type'] ?? '');
 
         // Check at least one brick is available before proceeding.
         if (empty(AAB_Bricks::get_next_available())) {
@@ -60,7 +74,7 @@ class AAB_Woo {
         }
 
         $prefill    = self::get_reply_prefill_data($reply_to);
-        $product_id = self::get_product_id();
+        $product_id = self::get_product_id_for_type($brick_type);
 
         if (!$product_id) {
             wc_add_notice('Adopt A Brick product ID is not configured.', 'error');
@@ -78,6 +92,7 @@ class AAB_Woo {
         // Store claim data — brick_id/brick_number are assigned at payment time.
         // sender_name / display_name are derived from billing details at order completion.
         WC()->session->set('aab_claim_data', [
+            'brick_type'             => $brick_type,
             'anonymous'              => $anonymous ? 1 : 0,
             'sender_name'            => '',
             'display_name'           => $anonymous ? 'Anonymous' : '',
@@ -365,7 +380,8 @@ class AAB_Woo {
             }
 
             // Assign the next available brick now at payment time.
-            $brick_id = AAB_Bricks::assign_next_available();
+            $brick_type = (string) $item->get_meta('brick_type', true);
+            $brick_id   = AAB_Bricks::assign_next_available($brick_type);
             if (!$brick_id) {
                 continue;
             }

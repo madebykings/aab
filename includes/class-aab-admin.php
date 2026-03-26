@@ -5,6 +5,72 @@ class AAB_Admin {
 
     public static function init() {
         add_action('add_meta_boxes', [__CLASS__, 'add_meta_box']);
+
+        add_action('brick_type_add_form_fields',  [__CLASS__, 'brick_type_add_fields']);
+        add_action('brick_type_edit_form_fields', [__CLASS__, 'brick_type_edit_fields']);
+        add_action('created_brick_type',          [__CLASS__, 'save_brick_type_fields']);
+        add_action('edited_brick_type',           [__CLASS__, 'save_brick_type_fields']);
+    }
+
+    public static function brick_type_add_fields($taxonomy) {
+        ?>
+        <div class="form-field">
+            <label for="aab_type_product_id">WooCommerce Product ID</label>
+            <input type="number" name="aab_type_product_id" id="aab_type_product_id" value="" min="0">
+            <p>Leave blank to use the default Adopt A Brick product. Enter a product ID to use a different product (e.g. a higher-priced limited edition).</p>
+        </div>
+        <div class="form-field">
+            <label for="aab_type_description">Short description</label>
+            <textarea name="aab_type_description" id="aab_type_description" rows="3"></textarea>
+            <p>Shown on the brick selection card.</p>
+        </div>
+        <div class="form-field">
+            <label for="aab_type_image_id">Image attachment ID</label>
+            <input type="number" name="aab_type_image_id" id="aab_type_image_id" value="" min="0">
+            <p>Attachment ID from the Media Library. Falls back to the product's featured image if blank.</p>
+        </div>
+        <?php
+    }
+
+    public static function brick_type_edit_fields($term) {
+        $product_id  = (int) get_term_meta($term->term_id, 'aab_type_product_id', true);
+        $description = (string) get_term_meta($term->term_id, 'aab_type_description', true);
+        $image_id    = (int) get_term_meta($term->term_id, 'aab_type_image_id', true);
+        ?>
+        <tr class="form-field">
+            <th><label for="aab_type_product_id">WooCommerce Product ID</label></th>
+            <td>
+                <input type="number" name="aab_type_product_id" id="aab_type_product_id" value="<?php echo esc_attr($product_id ?: ''); ?>" min="0">
+                <p class="description">Leave blank to use the default product. Enter a product ID for a different price.</p>
+            </td>
+        </tr>
+        <tr class="form-field">
+            <th><label for="aab_type_description">Short description</label></th>
+            <td>
+                <textarea name="aab_type_description" id="aab_type_description" rows="3"><?php echo esc_textarea($description); ?></textarea>
+                <p class="description">Shown on the brick selection card.</p>
+            </td>
+        </tr>
+        <tr class="form-field">
+            <th><label for="aab_type_image_id">Image attachment ID</label></th>
+            <td>
+                <input type="number" name="aab_type_image_id" id="aab_type_image_id" value="<?php echo esc_attr($image_id ?: ''); ?>" min="0">
+                <p class="description">Attachment ID from the Media Library. Falls back to the product's featured image if blank.</p>
+            </td>
+        </tr>
+        <?php
+    }
+
+    public static function save_brick_type_fields($term_id) {
+        if (isset($_POST['aab_type_product_id'])) {
+            update_term_meta($term_id, 'aab_type_product_id', absint($_POST['aab_type_product_id']));
+        }
+        if (isset($_POST['aab_type_description'])) {
+            update_term_meta($term_id, 'aab_type_description', sanitize_textarea_field($_POST['aab_type_description']));
+        }
+        if (isset($_POST['aab_type_image_id'])) {
+            update_term_meta($term_id, 'aab_type_image_id', absint($_POST['aab_type_image_id']));
+        }
     }
 
     public static function add_meta_box() {
