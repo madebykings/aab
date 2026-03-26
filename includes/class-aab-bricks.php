@@ -370,7 +370,37 @@ class AAB_Bricks {
         return $brick ? (int) $brick->ID : 0;
     }
 
-    public static function generate_range($start, $end) {
+    public static function get_max_brick_number() {
+        $posts = get_posts([
+            'post_type'      => self::POST_TYPE,
+            'post_status'    => 'publish',
+            'posts_per_page' => 1,
+            'orderby'        => 'meta_value_num',
+            'order'          => 'DESC',
+            'meta_key'       => 'brick_number',
+        ]);
+
+        return !empty($posts) ? (int) get_post_meta($posts[0]->ID, 'brick_number', true) : 0;
+    }
+
+    public static function generate_quantity($quantity, $type_slug = '') {
+        $quantity = (int) $quantity;
+        if ($quantity < 1) {
+            return ['created' => 0, 'start' => 0, 'end' => 0];
+        }
+
+        $start   = self::get_max_brick_number() + 1;
+        $end     = $start + $quantity - 1;
+        $created = self::generate_range($start, $end, $type_slug);
+
+        return [
+            'created' => $created,
+            'start'   => $start,
+            'end'     => $start + $created - 1,
+        ];
+    }
+
+    public static function generate_range($start, $end, $type_slug = '') {
         $start = (int) $start;
         $end   = (int) $end;
 
@@ -408,6 +438,9 @@ class AAB_Bricks {
                 update_post_meta($post_id, 'brick_status', 'available');
                 update_post_meta($post_id, 'chain_depth', 0);
                 update_post_meta($post_id, 'revealed_views', 0);
+                if ($type_slug) {
+                    wp_set_post_terms($post_id, [$type_slug], 'brick_type');
+                }
                 $created++;
             }
         }
